@@ -25,7 +25,7 @@ const ROAD_SPEED_MAX = 9;
 const ROAD_ACCEL = 0.0005;
 const SPAWN_INTERVAL_INITIAL = 90; // frames
 const SPAWN_INTERVAL_MIN = 30;
-const KICK_RANGE = 80;
+const KICK_RANGE = 55;
 const KICK_DURATION = 15;
 const BITTEN_DURATION = 60;
 
@@ -48,6 +48,97 @@ let kickTimer = 0;
 let bittenTimer = 0;
 let bloodParticles = [];
 let biterDog = null; // the dog that bit the player
+let floatingTexts = []; // {x, y, text, life}
+
+// --- Audio (Web Audio API, no files needed) ---
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playBark() {
+  const ac = getAudioCtx();
+  // Short noise burst + pitched oscillator = bark
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(300, ac.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(150, ac.currentTime + 0.1);
+  gain.gain.setValueAtTime(0.3, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 0.15);
+  osc.connect(gain);
+  gain.connect(ac.destination);
+  osc.start(ac.currentTime);
+  osc.stop(ac.currentTime + 0.15);
+
+  // Second bark syllable
+  const osc2 = ac.createOscillator();
+  const gain2 = ac.createGain();
+  osc2.type = 'sawtooth';
+  osc2.frequency.setValueAtTime(350, ac.currentTime + 0.08);
+  osc2.frequency.exponentialRampToValueAtTime(180, ac.currentTime + 0.2);
+  gain2.gain.setValueAtTime(0.25, ac.currentTime + 0.08);
+  gain2.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 0.22);
+  osc2.connect(gain2);
+  gain2.connect(ac.destination);
+  osc2.start(ac.currentTime + 0.08);
+  osc2.stop(ac.currentTime + 0.22);
+}
+
+let bgmStarted = false;
+let bgmGain = null;
+function startBGM() {
+  if (bgmStarted) return;
+  bgmStarted = true;
+  const ac = getAudioCtx();
+  bgmGain = ac.createGain();
+  bgmGain.gain.value = 0.08;
+  bgmGain.connect(ac.destination);
+
+  // Simple looping chiptune melody
+  const notes = [262, 294, 330, 349, 392, 349, 330, 294]; // C D E F G F E D
+  const noteLen = 0.25;
+  function playLoop() {
+    if (state === 'title') { bgmStarted = false; return; }
+    const now = ac.currentTime;
+    for (let i = 0; i < notes.length; i++) {
+      const osc = ac.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = notes[i];
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.08, now + i * noteLen);
+      g.gain.setValueAtTime(0, now + i * noteLen + noteLen * 0.8);
+      osc.connect(g);
+      g.connect(bgmGain);
+      osc.start(now + i * noteLen);
+      osc.stop(now + i * noteLen + noteLen);
+    }
+    // Bass line
+    const bassNotes = [131, 131, 175, 175, 196, 196, 175, 165];
+    for (let i = 0; i < bassNotes.length; i++) {
+      const osc = ac.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = bassNotes[i];
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.1, now + i * noteLen);
+      g.gain.setValueAtTime(0, now + i * noteLen + noteLen * 0.9);
+      osc.connect(g);
+      g.connect(bgmGain);
+      osc.start(now + i * noteLen);
+      osc.stop(now + i * noteLen + noteLen);
+    }
+    setTimeout(playLoop, notes.length * noteLen * 1000);
+  }
+  playLoop();
+}
+
+function stopBGM() {
+  bgmStarted = false;
+  if (bgmGain) {
+    bgmGain.gain.value = 0;
+  }
+}
 
 // --- Helpers ---
 function laneX(lane) {
@@ -135,6 +226,9 @@ function kickDog() {
     closest.kickDirY = -(10 + Math.random() * 5);
     closest.kickSpin = (Math.random() - 0.5) * 0.4;
     closest.kickRotation = 0;
+    score += 100;
+    floatingTexts.push({ x: closest.x, y: closest.y, text: '+100', life: 1.0 });
+    playBark();
   }
 }
 
@@ -155,7 +249,9 @@ function startGame() {
   bittenTimer = 0;
   bloodParticles = [];
   biterDog = null;
+  floatingTexts = [];
   overlay.classList.add('hidden');
+  startBGM();
 }
 
 function triggerDeath(dog) {
@@ -163,6 +259,7 @@ function triggerDeath(dog) {
   bittenTimer = BITTEN_DURATION;
   shakeTimer = 20;
   biterDog = dog;
+  stopBGM();
 
   // Spawn blood particles
   bloodParticles = [];
@@ -219,7 +316,8 @@ function update() {
   if (state !== 'playing') return;
 
   frameCount++;
-  score = Math.floor(frameCount / 6);
+  // Add 1 point every 6 frames (distance score), kick bonus is added separately
+  if (frameCount % 6 === 0) score++;
 
   // Speed up over time
   roadSpeed = Math.min(ROAD_SPEED_MAX, ROAD_SPEED_INITIAL + frameCount * ROAD_ACCEL);
@@ -270,6 +368,13 @@ function update() {
 
   // Road markings scroll
   roadMarkOffset = (roadMarkOffset + roadSpeed) % 40;
+
+  // Update floating texts
+  for (const ft of floatingTexts) {
+    ft.y -= 1.5;
+    ft.life -= 0.025;
+  }
+  floatingTexts = floatingTexts.filter(ft => ft.life > 0);
 }
 
 // --- Drawing ---
@@ -627,6 +732,21 @@ function drawHUD() {
     ctx.fillText('Space / Tap to Kick!', W / 2, H - 20);
     ctx.textAlign = 'left';
   }
+
+  // Floating score texts
+  ctx.font = 'bold 20px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  for (const ft of floatingTexts) {
+    ctx.globalAlpha = Math.max(0, ft.life);
+    ctx.fillStyle = '#ffd700';
+    ctx.fillText(ft.text, ft.x, ft.y);
+    // Outline for readability
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.lineWidth = 2;
+    ctx.strokeText(ft.text, ft.x, ft.y);
+  }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'left';
 }
 
 function draw() {

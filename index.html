@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dodge the Dogs!</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    overflow: hidden;
+  }
+  canvas {
+    border-radius: 12px;
+    box-shadow: 0 0 40px rgba(100, 100, 255, 0.2);
+  }
+  #ui-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #fff;
+    pointer-events: none;
+  }
+  #ui-overlay.hidden { display: none; }
+  #ui-overlay h1 { font-size: 48px; margin-bottom: 12px; text-shadow: 2px 2px 8px rgba(0,0,0,0.5); }
+  #ui-overlay p { font-size: 20px; opacity: 0.8; }
+  #ui-overlay .score-display { font-size: 32px; margin: 16px 0; color: #ffd700; }
+  #ui-overlay .prompt { font-size: 18px; opacity: 0.6; margin-top: 20px; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="ui-overlay">
+  <h1 id="overlay-title">Dodge the Dogs!</h1>
+  <p id="overlay-sub">Run as far as you can</p>
+  <div class="score-display hidden" id="final-score"></div>
+  <p class="prompt" id="overlay-prompt">Press Space or Tap to Start</p>
+</div>
+<script src="game.js"></script>
+</body>
+</html>

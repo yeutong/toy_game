@@ -182,7 +182,7 @@ function startBGM() {
   const notes = [262, 294, 330, 349, 392, 349, 330, 294]; // C D E F G F E D
   const noteLen = 0.25;
   function playLoop() {
-    if (state === 'title') { bgmStarted = false; return; }
+    if (!bgmStarted) return;
     const now = ac.currentTime;
     for (let i = 0; i < notes.length; i++) {
       const osc = ac.createOscillator();

@@ -49,6 +49,8 @@ let bittenTimer = 0;
 let bloodParticles = [];
 let biterDog = null; // the dog that bit the player
 let floatingTexts = []; // {x, y, text, life}
+let kickCount = 0; // easter egg: kick 5+ to unlock lawn hiding
+let onLawn = false;
 
 // --- Audio (Web Audio API, no files needed) ---
 let audioCtx = null;
@@ -275,8 +277,22 @@ canvas.addEventListener('click', () => {
 
 function movePlayer(dir) {
   const newLane = playerLane + dir;
+  // Easter egg: allow moving to right lawn (lane 3) after 5+ kicks
+  if (newLane === LANE_COUNT && kickCount >= 5) {
+    playerLane = newLane;
+    onLawn = true;
+    playerTargetX = ROAD_RIGHT + (W - ROAD_RIGHT) / 2;
+    return;
+  }
   if (newLane >= 0 && newLane < LANE_COUNT) {
     playerLane = newLane;
+    onLawn = false;
+    playerTargetX = laneX(playerLane);
+  }
+  // Allow moving back from lawn
+  if (playerLane === LANE_COUNT && newLane === LANE_COUNT - 1) {
+    playerLane = newLane;
+    onLawn = false;
     playerTargetX = laneX(playerLane);
   }
 }
@@ -307,6 +323,7 @@ function kickDog() {
     closest.kickSpin = (Math.random() - 0.5) * 0.4;
     closest.kickRotation = 0;
     score += 100;
+    kickCount++;
     floatingTexts.push({ x: closest.x, y: closest.y, text: '+100', life: 1.0 });
     playBark(closest.breed);
   }
@@ -330,6 +347,8 @@ function startGame() {
   bloodParticles = [];
   biterDog = null;
   floatingTexts = [];
+  kickCount = 0;
+  onLawn = false;
   overlay.classList.add('hidden');
   startBGM();
 }
@@ -435,7 +454,8 @@ function update() {
   // Smooth player movement
   playerX = lerp(playerX, playerTargetX, 0.2);
 
-  // Collision detection (only unkicked dogs)
+  // Collision detection (only unkicked dogs, skip if on lawn)
+  if (onLawn) { /* safe on the lawn! */ } else
   for (const dog of dogs) {
     if (dog.kicked) continue;
     const dx = Math.abs(playerX - dog.x);

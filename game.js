@@ -57,33 +57,113 @@ function getAudioCtx() {
   return audioCtx;
 }
 
-function playBark() {
+function playBark(breed) {
   const ac = getAudioCtx();
-  // Short noise burst + pitched oscillator = bark
-  const osc = ac.createOscillator();
-  const gain = ac.createGain();
-  osc.type = 'sawtooth';
-  osc.frequency.setValueAtTime(300, ac.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(150, ac.currentTime + 0.1);
-  gain.gain.setValueAtTime(0.3, ac.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 0.15);
-  osc.connect(gain);
-  gain.connect(ac.destination);
-  osc.start(ac.currentTime);
-  osc.stop(ac.currentTime + 0.15);
+  const t = ac.currentTime;
+  switch (breed) {
+    case 0: barkShiba(ac, t); break;
+    case 1: barkCorgi(ac, t); break;
+    case 2: barkPoodle(ac, t); break;
+    case 3: barkDalmatian(ac, t); break;
+  }
+}
 
-  // Second bark syllable
-  const osc2 = ac.createOscillator();
-  const gain2 = ac.createGain();
-  osc2.type = 'sawtooth';
-  osc2.frequency.setValueAtTime(350, ac.currentTime + 0.08);
-  osc2.frequency.exponentialRampToValueAtTime(180, ac.currentTime + 0.2);
-  gain2.gain.setValueAtTime(0.25, ac.currentTime + 0.08);
-  gain2.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 0.22);
-  osc2.connect(gain2);
-  gain2.connect(ac.destination);
-  osc2.start(ac.currentTime + 0.08);
-  osc2.stop(ac.currentTime + 0.22);
+// Shiba Inu: high-pitched quick double yap
+function barkShiba(ac, t) {
+  [0, 0.1].forEach(off => {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(900 - off * 500, t + off);
+    o.frequency.exponentialRampToValueAtTime(500, t + off + 0.06);
+    g.gain.setValueAtTime(0.3, t + off);
+    g.gain.exponentialRampToValueAtTime(0.01, t + off + 0.08);
+    const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1500; f.Q.value = 1;
+    o.connect(f); f.connect(g); g.connect(ac.destination);
+    o.start(t + off); o.stop(t + off + 0.1);
+  });
+}
+
+// Corgi: bouncy cartoon bark
+function barkCorgi(ac, t) {
+  // Pop
+  const o1 = ac.createOscillator(), g1 = ac.createGain();
+  o1.type = 'square';
+  o1.frequency.setValueAtTime(800, t);
+  o1.frequency.exponentialRampToValueAtTime(300, t + 0.05);
+  g1.gain.setValueAtTime(0.3, t);
+  g1.gain.exponentialRampToValueAtTime(0.01, t + 0.06);
+  o1.connect(g1); g1.connect(ac.destination);
+  o1.start(t); o1.stop(t + 0.08);
+  // Woof
+  const o2 = ac.createOscillator(), g2 = ac.createGain();
+  o2.type = 'sawtooth';
+  o2.frequency.setValueAtTime(350, t + 0.04);
+  o2.frequency.exponentialRampToValueAtTime(150, t + 0.15);
+  g2.gain.setValueAtTime(0.0001, t + 0.03);
+  g2.gain.linearRampToValueAtTime(0.35, t + 0.05);
+  g2.gain.exponentialRampToValueAtTime(0.01, t + 0.18);
+  const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900;
+  o2.connect(f); f.connect(g2); g2.connect(ac.destination);
+  o2.start(t + 0.03); o2.stop(t + 0.2);
+  // Bounce tail
+  const o3 = ac.createOscillator(), g3 = ac.createGain();
+  o3.type = 'sine';
+  o3.frequency.setValueAtTime(500, t + 0.12);
+  o3.frequency.exponentialRampToValueAtTime(250, t + 0.2);
+  g3.gain.setValueAtTime(0.0001, t + 0.11);
+  g3.gain.linearRampToValueAtTime(0.15, t + 0.13);
+  g3.gain.exponentialRampToValueAtTime(0.01, t + 0.22);
+  o3.connect(g3); g3.connect(ac.destination);
+  o3.start(t + 0.11); o3.stop(t + 0.25);
+}
+
+// Poodle: high-pitched yelp
+function barkPoodle(ac, t) {
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(500, t);
+  o.frequency.linearRampToValueAtTime(1200, t + 0.05);
+  o.frequency.exponentialRampToValueAtTime(600, t + 0.2);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.3, t + 0.02);
+  g.gain.setValueAtTime(0.25, t + 0.06);
+  g.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
+  o.connect(g); g.connect(ac.destination);
+  o.start(t); o.stop(t + 0.3);
+  // Harmonic
+  const o2 = ac.createOscillator(), g2 = ac.createGain();
+  o2.type = 'triangle';
+  o2.frequency.setValueAtTime(1000, t);
+  o2.frequency.linearRampToValueAtTime(2400, t + 0.05);
+  o2.frequency.exponentialRampToValueAtTime(1200, t + 0.2);
+  g2.gain.setValueAtTime(0.0001, t);
+  g2.gain.linearRampToValueAtTime(0.1, t + 0.02);
+  g2.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+  o2.connect(g2); g2.connect(ac.destination);
+  o2.start(t); o2.stop(t + 0.25);
+}
+
+// Dalmatian: classic medium woof
+function barkDalmatian(ac, t) {
+  // Noise burst
+  const buf = ac.createBuffer(1, ac.sampleRate * 0.15, ac.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const ns = ac.createBufferSource(); ns.buffer = buf;
+  const nf = ac.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 600; nf.Q.value = 3;
+  const ng = ac.createGain(); ng.gain.setValueAtTime(0.2, t); ng.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+  ns.connect(nf); nf.connect(ng); ng.connect(ac.destination);
+  ns.start(t); ns.stop(t + 0.12);
+  // Tonal
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(400, t);
+  o.frequency.exponentialRampToValueAtTime(180, t + 0.12);
+  g.gain.setValueAtTime(0.4, t);
+  g.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+  const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 800;
+  o.connect(f); f.connect(g); g.connect(ac.destination);
+  o.start(t); o.stop(t + 0.18);
 }
 
 let bgmStarted = false;
@@ -228,7 +308,7 @@ function kickDog() {
     closest.kickRotation = 0;
     score += 100;
     floatingTexts.push({ x: closest.x, y: closest.y, text: '+100', life: 1.0 });
-    playBark();
+    playBark(closest.breed);
   }
 }
 
